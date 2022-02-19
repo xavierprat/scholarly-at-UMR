@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="jsonpickleJS-master/build/jsonpickle.min.js"></script>
+
+    <script type="text/javascript">
+      $(document).ready(function(){
+
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString)
+        $("#query i").append(queryString);
+
+        //output type:
+        const boldQuery = (authorsString, spellingVariation,authorId) => {
+          const n = authorsString.toUpperCase();
+          const q = spellingVariation.toUpperCase();
+          const x = n.indexOf(q);
+          if (!q || x === -1) {
+            return authorsString; // bail early
+          }
+          const l = q.length;
+          return authorsString.substr(0, x) + '<b><a href="https://scholar.google.com/citations?user='+authorId+'">' + authorsString.substr(x, l) + '</a></b>' + authorsString.substr(x + l);
+        }
+
+        //AUTHORS spelling for highlight
+        var allAuthors = $.ajax({
+          type: "GET",
+          url: "./source/authors.txt",
+          dataType: "text",
+          async: false,
+          success: function(mydata){
+          }
+        }).responseText;
+
+        var listauthors = allAuthors.split("\n");
+        listauthors.pop() ;
+        var namespelling = [];
+        for (var i in listauthors){
+          var nameVariations = listauthors[i].split(';');
+          namespelling.push(nameVariations);
+        }
+
+        if ( urlParams.has('author')){
+          var authors = urlParams.get("author").split(";");
+          $("#query p").append("Including the following authors: "+authors.toString()+ "</br>");
+        }else{
+          //take the first of the name spelling variable
+          var authors = [];
+          for (var i in namespelling){
+            authors.push(namespelling[i][0]);
+          }
+          $("#query p").append("No authors specified, including them all: "+authors.toString()+" </br>");
+        }
+        //writing authors checkboxes for the api
+        for (var i in namespelling){
+          var thisAuthor = namespelling[i][0];
+          //is this author selected? then check the box
+          if ( authors.indexOf(thisAuthor) > -1){
+            $("#authorsCheck").append('<label><input type="checkbox" value="'+thisAuthor+'" checked  /> '+thisAuthor+'</label>' );
+          }else{
+            $("#authorsCheck").append('<label><input type="checkbox" value="'+thisAuthor+'" /> '+thisAuthor+'</label>' );
+          }
+        }
+
+        var allInfo = [];
+        for (var i=0;i<authors.length;i++){
+          var author = authors[i];
+          var authorInfo = $.ajax({
+            type: "GET",
+            url:"./source/"+author+".json",
+            dataType: "json",
+            async: false,
+            success: function(mydata){
+              var authorInfo = jsonpickle.decode(mydata);
+            }
+          }).responseJSON;
+          allInfo.push(JSON.parse(authorInfo));
+        }
+        //filter allInfo by years
+        var allYears = Array.from(new Array(24), (x, i) => i + 1998);
+        if ( urlParams.has('years')){
+          var years = urlParams.get("years").split(";");
+          $("#query p").append("The following years are included: "+years.toString()+" </br>");
+        }else{
+          var years = [];
+          for (var i in allYears){
+            var thisYear = allYears[i];
+            years[i] = thisYear.toString();
+          }
+          $("#query p").append("No years specified, all years included (1980-2021)  </br>");
+        }
+        //writing years
+        for (var i in allYears){
+          var thisYear = allYears[i];
+          if (years.indexOf(thisYear.toString()) > -1 ){
+            $("#yearsCheck").append('<label><input type="checkbox" value="'+thisYear+'" checked /> '+thisYear+'</label>' );
+          }else{
+            $("#yearsCheck").append('<label><input type="checkbox" value="'+thisYear+'" /> '+thisYear+'</label>' );
+          }
+
+        }
+
+        //create allPubs filtering by year, authors are already filtered by Ajax
+        var allPubs = {}
+        for ( var i in years){
+          allPubs[years[i]] = [];
+        }
+
+        //Build the pub array. avoid duplicates with uniqueIdpub, but need to use title, as different scholar profiles have diff ids for same publication
+        uniqueIdpub = []
+        for (var i in allInfo){
+          var thisItem = allInfo[i];
+          var authorName = thisItem.name;
+          var authorId = thisItem.scholar_id;
+
+          var pubs = thisItem.publications;
+          for (var j in pubs){
+            var thisPub = pubs[j].bib;
+            thisPub["id"] = authorId;
+            if (thisPub.pub_year === undefined){
+              var year = "";
+            }else{
+              var year = thisPub.pub_year;
+            }
+
+            if ( years.indexOf(year.toString()) > -1){
+              //allPubs.push(thisPub);
+              if ( ! uniqueIdpub.includes(thisPub.title.toLowerCase()) ){
+
+                allPubs[parseInt(year)].push(thisPub);
+                uniqueIdpub.push(thisPub.title.toLowerCase());
+              }
+            }
+          }
+        }
+        //sort all by year
+        const orderedPubs = {};
+        Object.keys(allPubs).sort().forEach(function(key) {
+          orderedPubs[key] = allPubs[key];
+        });
+
+        if ( urlParams.has('oldfirst') ){
+          $("#oldfirst").prop("checked",true);
+          years.sort();
+          $("#query p").append("oldfirst is specified. Pubs are displayed from old to new</br>");
+        }else{
+          $("#oldfirst").prop("checked",false);
+          //default is new first
+          years.reverse();
+          $("#query p").append("oldfirst is not specified. Pubs are displayed from new to old</br>");
+        }
+
+        //PRINT
+        for (var i in years){
+          var thisYear = parseInt(years[i]);
+          if (orderedPubs[thisYear].length < 1) continue;
+          for (var j in orderedPubs[thisYear]){
+            var thisPub = orderedPubs[thisYear][j];
+            //lets bold the CLI members trying all possible spellings and add a link to Scholar
+            for (var k in namespelling){
+              var theseSpellings = namespelling[k];
+              for (var l in theseSpellings){
+                //skip the second item because its the Id
+                if ( l == 1 ){ continue; };
+                //thisPub["author"] = thisPub.author.replace(thisAuthor,'<b>'+thisAuthor+'</b>');
+                //thisPub["author"] = boldQuery(thisPub.author,theseSpellings[l]);
+                //are these spellings
+                thisPub["author"] = boldQuery(thisPub.author,theseSpellings[l],theseSpellings[1]);
+              }
+            }
+            var text = "<li>"+
+            thisPub.author+ "</br>"+
+            thisPub.title+ "</br>";
+
+            if (thisPub.journal !== undefined){
+              text += "<i>"+thisPub.journal+"</i>, ";
+            }else{
+              if (thisPub.publisher !== undefined) text += "<i>"+thisPub.publisher+"</i>, ";
+            }
+            if (thisPub.number !== undefined) text += thisPub.number+", ";
+            if (thisPub.volume !== undefined) text += "("+thisPub.volume+"), ";
+            if (thisPub.pages !== undefined) text += thisPub.pages+", ";
+            if (thisPub.pub_year !== undefined) text += "<b>"+thisPub.pub_year+"</b> ";
+	    console.log(thisPub);
+            if (thisPub.abstract !== undefined) {
+              var str = thisPub.abstract;
+              str=  str.replace(/[^\w\s]/gi, '');
+              text += '<i><a href="javascript:alert(\''+str+'\')">abstract</a></i> ';
+            }
+            if (thisPub.url !== undefined ) text += '</br><a href="'+thisPub.url+'">'+thisPub.url+'</a>';
+            text += ' </li>';
+            $("#results ol").append(text);
+          }
+        }
+
+        function readandload(){
+
+          var query = "";
+          if ( $("#oldfirst").is(":checked")) query += "oldfirst&"
+          var checkedAuthors = "&author="
+          var found = false;
+          $("#authorsCheck input").each(function(){
+            if ( $(this).is(":checked")){
+              found = true;
+              checkedAuthors += $(this).val()+";";
+            }
+          });
+          if (found){
+            checkedAuthors = checkedAuthors.substring(0, checkedAuthors.length - 1);
+            query += checkedAuthors;
+          }
+          var checkedYears = "&years=";
+          var found = false;
+          $("#yearsCheck input").each(function(){
+            if ( $(this).is(":checked")){
+              found = true
+              checkedYears += $(this).val()+";";
+            }
+          });
+          if (found){
+            checkedYears = checkedYears.substring(0, checkedYears.length - 1);
+            query += checkedYears;
+          }
+          var url = window.location.href.split('?')[0] + "?" + query;
+          window.location.href = url;
+        }
+        $(".allnone").click(function(){
+          var allnoneOption = $(this).attr('name');
+          if ( allnoneOption == "selectAllAuthors"){
+            $("#authorsCheck").find(':checkbox').each(function(){
+              $(this).prop('checked', true);
+            });
+          }else if ( allnoneOption == "unselectAllAuthors" ){
+            $("#authorsCheck").find(':checkbox').not(":eq(0)").each(function(){
+              $(this).prop('checked', false);
+            });
+
+          }else if ( allnoneOption == "selectAllYears" ){
+            $("#yearsCheck").find(':checkbox').each(function(){
+              $(this).prop('checked', true);
+            });
+          }else if ( allnoneOption == "unselectAllYears" ){
+            $("#yearsCheck").find(':checkbox').not(":eq(-1)").each(function(){
+              $(this).prop('checked', false);
+            });
+          }
+          readandload();
+        })
+        $(".api").change(function(){
+          readandload();
+        });
+
+      });
+    </script>
+  </head>
+  <body>
+    <div id="all">
+      <center>
+        <h1>Faculty publications at UMR </h1>
+          <h4><i>unofficial compilation from Google Scholar's faculty profiles</i></h4>
+	  <h4><i>Contact pratr001@r.umn.edu if you have a google scholar profile. You can make your own <a href="https://scholar.google.com/intl/en/scholar/citations.html">here</a>.</i></h4>
+      </center>
+      <div class="api">
+        <b>Selection: </b>
+        </br>
+        <div id="authorsCheck">
+          Authors:
+          <input type="button" class="allnone" name="selectAllAuthors" value="Select All Authors"></input>
+          <input class="allnone" type="button" name="unselectAllAuthors" value="Unselect All Authors"></input></br>
+        </div>
+      </br>
+        <div id="yearsCheck">
+          Years:
+          <input class="allnone" type="button" name="selectAllYears" value="Select All Years">
+        </input><input type="button" class="allnone" name="unselectAllYears" value="Only most recent year"></input></br>
+        </div>
+        <p></p>
+
+      </div>
+      <div id="query">
+        <b>Query: </b><i></i>
+        <p>
+
+        </p>
+
+      </div>
+      <div id="results">
+        </br>
+        <label>
+        <input type="checkbox" class="api" id="oldfirst" />Check to display old publicatons first
+        </label>
+      </br>
+        <b>Results: </b>
+        <ol>
+
+        </ol>
+      </div>
+
+    </div>
+
+<hr/>
+<p>
+  Disclaimer: This is an unofficial list of publications automatically collected from the Google Scholar accounts of *some* faculty members at the CLI.
+</p>
+
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-sa/3.0/80x15.png" /></a> <a href="http://umn.edu/home/pratr001">Xavier Prat-Resina</a> (pratr001 at r.umn.edu) , University of Minnesota Rochester, 2020
+<br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/">Creative Commons Attribution-ShareAlike 3.0 Unported License</a>.
+  </body>
+</html>
