@@ -81,7 +81,11 @@
           allInfo.push(JSON.parse(authorInfo));
         }
         //filter allInfo by years
-        var allYears = Array.from(new Array(24), (x, i) => i + 1998);
+        var currYear = new Date().getFullYear();
+        var oldestYear = 1998 // we're very young
+        var nyears = currYear - oldestYear + 2 //add next year just in case
+        var allYears = Array.from(new Array(nyears), (x, i) => i + oldestYear);
+
         if ( urlParams.has('years')){
           var years = urlParams.get("years").split(";");
           $("#query p").append("The following years are included: "+years.toString()+" </br>");
