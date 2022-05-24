@@ -4,6 +4,14 @@
 Created on Thu Aug  6 14:48:07 2020
 
 @author: xavier
+
+May 24 2022:
+currently works with scholarly 1.6 in python3.9
+
+conda create --name scholar python=3.9
+conda activate scholar
+conda install -c conda-forge scholarly
+conda install -c conda-forge jsonpickle
 """
 
 from scholarly import scholarly
@@ -11,6 +19,11 @@ from scholarly import scholarly
 import jsonpickle
 import json
 import os
+
+from scholarly import ProxyGenerator
+pg = ProxyGenerator()
+pg.FreeProxies()
+scholarly.use_proxy(pg)
 
 #path = "/Users/xavier/Gd/Service/Scholarly"
 #os.chdir(path)
@@ -26,7 +39,7 @@ faculty = [
     ["Molly Dingel","-6iHfAcAAAAJ",         "M Dingel;Molly J Dingel"],
     ["Angie Mejia","VucmQHIAAAAJ",          "Angie P Mejia;Angie Pamela Mejia"],
     ["Kelsey Metzger","_oJQvj0AAAAJ",       "Kelsey J Metzger;K Metzger;Kelsey Jean Metzger"],
-    ["Cassidy R. Terrell","-mHQBIrrxoMC",   "Cassidy Terrell;Cassidy R Terrell;C Terrell;Cassidy Renee Terrell"],
+    ["Cassidy R. Terrell","-mHQBIrrxoMC",   "Cassidy Terrell;Cassidy R Terrell;C Terrell;Cassidy Renee Terrell"]
     ["Bijaya Aryal","xLrK_rQAAAAJ",         "B Aryal"],
     ["Jake Wright","jtONKUUAAAAJ",          "J Wright"]
     ]

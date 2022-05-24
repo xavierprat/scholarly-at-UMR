@@ -15,11 +15,16 @@ Modify the array faculty with your author members. Each item of this array conta
 
 These json files are displayed with jQuery and JSON-pickle on the html file index.html
 
+```
+conda create --name scholar python=3.9
+conda activate scholar
+conda install -c conda-forge scholarly
+conda install -c conda-forge jsonpickle
+```
+
 ## Required packages
 
-The current version is using Python3.8.11, jsonpickle 1.4.1, and Scholarly 1.5.1. All installed through conda.
-
-The html needs the JS jsonpickle package to read JSON files and it is available [https://github.com/cuthbertLab/jsonpickleJS](https://github.com/cuthbertLab/jsonpickleJS)
+The current version is using Python3.9, jsonpickle 2.2.0, and Scholarly 1.6.3. All installed through conda.
 
 ## Maintenance
 
