@@ -86,6 +86,8 @@ for item in faculty:
             v = pub["bib"][key]
             if key == "abstract":
                 v = v.replace("\"","").replace("'","'")
+            if key == "pub_year":
+                key = "year"
             bibEntry += key+" = {"+str(v)+"},\n"
         #remove last character from string
         bibEntry = bibEntry[:-2]
