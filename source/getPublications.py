@@ -15,15 +15,17 @@ conda install -c conda-forge jsonpickle
 """
 
 from scholarly import scholarly
+from scholarly import *
 #scholarly builds a pickle that cannot be turned into json right a way, so Ill write it into a pickle text that on the browser will be used as
 import jsonpickle
 import json
 import os
 
-from scholarly import ProxyGenerator
-pg = ProxyGenerator()
-pg.FreeProxies()
-scholarly.use_proxy(pg)
+#from scholarly import ProxyGenerator
+#pg = ProxyGenerator()
+#pg.FreeProxies()
+#pg.Tor_Internal()
+#scholarly.use_proxy(pg)
 
 #path = "/Users/xavier/Gd/Service/Scholarly"
 #os.chdir(path)
@@ -32,16 +34,20 @@ scholarly.use_proxy(pg)
 # Retrieve the author's data, fill-in, and print
 
 faculty = [
-    ["Xavier Prat-Resina","b0fbol0AAAAJ",   "Xavier Prat;X Prat-Resina;Xavier Prat Resina"],
-    ["Abraham Ayebo","nw1yBdUAAAAJ",        "A Ayebo"],
-    ["Marcia D Nichols","hy6FBKgAAAAJ",     "Marcia Nichols;M.D Nichols"],
-    ["Andrew Petzold","wZWv8KYAAAAJ",       "Andrew M Petzold;Andrew Michael Petzold;AM Petzold"],
-    ["Molly Dingel","-6iHfAcAAAAJ",         "M Dingel;Molly J Dingel"],
-    ["Angie Mejia","VucmQHIAAAAJ",          "Angie P Mejia;Angie Pamela Mejia"],
-    ["Kelsey Metzger","_oJQvj0AAAAJ",       "Kelsey J Metzger;K Metzger;Kelsey Jean Metzger"],
-    ["Cassidy R. Terrell","-mHQBIrrxoMC",   "Cassidy Terrell;Cassidy R Terrell;C Terrell;Cassidy Renee Terrell"]
-    ["Bijaya Aryal","xLrK_rQAAAAJ",         "B Aryal"],
-    ["Jake Wright","jtONKUUAAAAJ",          "J Wright"]
+   ["Bijaya Aryal","xLrK_rQAAAAJ",         "B Aryal;B. Aryal"],
+   ["Abraham Ayebo","nw1yBdUAAAAJ",        "A Ayebo"],
+   ["Amy Collins-Warfield","8egZNOMAAAAJ", 	"AE Collins-Warfield;A Collins-Warfield;Amy E Collins-Warfield"],
+   ["Olivia Crandell","nY0udHMAAAAJ", 		"Olivia Crandell;OM Crandell;Olivia M. Crandell;Olivia Marie Crandell;Olivia M Crandell"],
+   ["Molly Dingel","-6iHfAcAAAAJ",         "M Dingel;Molly J Dingel"],
+   ["Tim Doherty","bz1A2PAAAAAJ",         "Tim Doherty;Tim F Doherty"],
+   ["Robert M. Erdmann","BMnhiyAAAAAJ",	"RM Erdmann;R Erdmann;Robert Erdmann;Robert M Erdmann"],
+   ["Kelsey Metzger","_oJQvj0AAAAJ",       "Kelsey J Metzger;K Metzger;Kelsey Jean Metzger"],
+   ["Marcia D Nichols","hy6FBKgAAAAJ",     "Marcia Nichols;M.D Nichols"],
+   ["Xavier Prat-Resina","b0fbol0AAAAJ",   "Xavier Prat;X Prat-Resina;Xavier Prat Resina"],
+   ["Andrew Petzold","wZWv8KYAAAAJ",       "Andrew M Petzold;Andrew Michael Petzold;AM Petzold"],
+   ["Cassidy R. Terrell","NDYTevUAAAAJ",   "Cassidy Terrell;Cassidy R Terrell;C Terrell;Cassidy Renee Terrell"],
+   ["Jake Wright","jtONKUUAAAAJ",          	"J Wright"]
+
     ]
 
 
@@ -86,8 +92,6 @@ for item in faculty:
             v = pub["bib"][key]
             if key == "abstract":
                 v = v.replace("\"","").replace("'","'")
-            if key == "pub_year":
-                key = "year"
             bibEntry += key+" = {"+str(v)+"},\n"
         #remove last character from string
         bibEntry = bibEntry[:-2]
