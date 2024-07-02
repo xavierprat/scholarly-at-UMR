@@ -1,8 +1,6 @@
 # scholarly at UMR
  Collecting GoogleScholar profiles from UMR faculty with Python's scholarly.
 
-I wrote this script because my department didn't have the resources to have someone to manually curate the publications of its members.
-
 As long as the faculty member has a google scholar profile, typically GoogleScholar will automatically update the list so no manually curation is required. At most, the faculty
 member may decide what publications to remove interacting directly with GoogleSCholar.
 
