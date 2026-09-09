@@ -255,7 +255,7 @@
 
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -281,6 +281,83 @@
       color: var(--muted);
       font-size: 0.78rem;
     }
+
+    .stat-card.duplicates {
+      border-color: #ead7b3;
+      background: #fffaf0;
+    }
+
+    .duplicate-panel {
+      background: var(--surface);
+      border: 1px solid #ead7b3;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .duplicate-panel summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 13px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      background: #fffaf0;
+    }
+
+    .duplicate-panel summary::-webkit-details-marker { display: none; }
+    .duplicate-panel summary::after { content: "▾"; color: var(--muted); }
+    .duplicate-panel:not([open]) summary::after { transform: rotate(-90deg); }
+
+    .duplicate-intro {
+      margin: 0;
+      padding: 13px 16px 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .duplicate-list {
+      display: grid;
+      gap: 8px;
+      padding: 4px 16px 16px;
+    }
+
+    .duplicate-group {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 12px;
+      background: var(--surface-soft);
+    }
+
+    .duplicate-group h4 {
+      margin: 0 0 5px;
+      font-size: 0.88rem;
+      line-height: 1.35;
+    }
+
+    .duplicate-kind {
+      display: inline-block;
+      margin: 0 0 7px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #fff1cc;
+      color: #72510a;
+      font-size: 0.68rem;
+      font-weight: 750;
+    }
+
+    .duplicate-records {
+      margin: 0;
+      padding-left: 19px;
+      color: #475467;
+      font-size: 0.78rem;
+    }
+
+    .duplicate-records li + li { margin-top: 4px; }
+    .duplicate-records a { font-weight: 650; text-decoration: none; }
 
     .chart-card {
       background: var(--surface);
@@ -610,7 +687,14 @@
         <div class="stat-card"><span class="stat-value" id="statAuthors">—</span><span class="stat-label">Authors selected</span></div>
         <div class="stat-card"><span class="stat-value" id="statYears">—</span><span class="stat-label">Years with results</span></div>
         <div class="stat-card"><span class="stat-value" id="statLearning">—</span><span class="stat-label">Learning publications</span></div>
+        <div class="stat-card duplicates"><span class="stat-value" id="statDuplicates">—</span><span class="stat-label">Duplicate records hidden</span></div>
       </div>
+
+      <details class="duplicate-panel" id="duplicatePanel" hidden>
+        <summary id="duplicateSummary">Review hidden duplicate records</summary>
+        <p class="duplicate-intro" id="duplicateIntro"></p>
+        <div class="duplicate-list" id="duplicateList"></div>
+      </details>
 
       <section class="chart-card" aria-labelledby="chartHeading">
         <div class="card-heading">
@@ -667,6 +751,7 @@
       let searchText = "";
       let chart = null;
       let currentPublications = [];
+      let duplicateGroups = [];
       let renderTimer = null;
 
       const els = {};
@@ -696,7 +781,8 @@
           "authorsCheck", "yearsCheck", "learningPubs", "secondaryPubs", "sortOrder",
           "searchInput", "copyView", "resetFilters", "selectAllAuthors", "clearAuthors",
           "selectAllYears", "recentYears", "latestYear", "statPublications", "statAuthors",
-          "statYears", "statLearning", "yearNav", "resultContext", "status", "results", "backToTop"
+          "statYears", "statLearning", "statDuplicates", "duplicatePanel", "duplicateSummary",
+          "duplicateIntro", "duplicateList", "yearNav", "resultContext", "status", "results", "backToTop"
         ].forEach(id => { els[id] = document.getElementById(id); });
       }
 
@@ -904,15 +990,26 @@
       function renderAll() {
         currentPublications = buildPublicationList();
         const filtered = applyTextSearch(currentPublications, searchText);
-        renderStats(filtered);
+        const visibleDuplicateGroups = filterDuplicateGroups(duplicateGroups, searchText);
+        const duplicateStats = summarizeDuplicates(visibleDuplicateGroups);
+        renderStats(filtered, duplicateStats);
+        renderDuplicateDiagnostics(visibleDuplicateGroups, duplicateStats);
         renderChart(filtered);
         renderYearNav(filtered);
         renderResults(filtered);
-        updateResultContext(filtered);
+        updateResultContext(filtered, duplicateStats);
       }
 
       function buildPublicationList() {
-        const byTitle = new Map();
+        // The JSON files remain untouched. Deduplication happens only in the browser.
+        // Records are linked conservatively using, in order:
+        //   1) the same DOI when one is available in both records;
+        //   2) an identical normalized title;
+        //   3) a high-confidence fuzzy title match, but only when authors overlap
+        //      and publication years are compatible.
+        // This catches cases where Scholar imports the same work from a publisher,
+        // ERIC, a repository, etc. with slightly different title metadata.
+        const groups = [];
 
         selectedAuthors.forEach(selectedName => {
           const authorInfo = authorCache.get(selectedName);
@@ -936,21 +1033,49 @@
               tag,
               id: scholarId,
               profileOwner: selectedName,
+              author_pub_id: pubRecord.author_pub_id || "",
               pub_url: pubRecord.pub_url,
               num_citations: Number(pubRecord.num_citations || 0),
               citedby_url: pubRecord.citedby_url
             };
 
-            const key = normalizeTitle(bib.title);
-            if (!byTitle.has(key)) {
-              byTitle.set(key, candidate);
+            let matchedGroup = null;
+            let matchReason = "";
+
+            for (const group of groups) {
+              const reason = publicationMatchReason(group.merged, candidate);
+              if (reason) {
+                matchedGroup = group;
+                matchReason = reason;
+                break;
+              }
+            }
+
+            if (!matchedGroup) {
+              groups.push({
+                key: normalizeTitle(candidate.title),
+                merged: candidate,
+                records: [candidate],
+                matchReasons: []
+              });
             } else {
-              byTitle.set(key, mergePublication(byTitle.get(key), candidate));
+              matchedGroup.records.push(candidate);
+              matchedGroup.matchReasons.push(matchReason);
+              matchedGroup.merged = mergePublication(matchedGroup.merged, candidate);
             }
           });
         });
 
-        return [...byTitle.values()].sort((a, b) => {
+        duplicateGroups = groups
+          .filter(group => group.records.length > 1)
+          .map(group => ({
+            key: group.key,
+            publication: group.merged,
+            records: group.records,
+            matchReasons: [...new Set(group.matchReasons)]
+          }));
+
+        return groups.map(group => group.merged).sort((a, b) => {
           const ay = Number(a.pub_year || 0);
           const by = Number(b.pub_year || 0);
           if (ay !== by) return sortOrder === "old" ? ay - by : by - ay;
@@ -958,8 +1083,107 @@
         });
       }
 
+      function publicationMatchReason(a, b) {
+        const doiA = extractDOI(a);
+        const doiB = extractDOI(b);
+        if (doiA && doiB && doiA === doiB) return "same DOI";
+
+        const titleA = normalizeTitle(a.title);
+        const titleB = normalizeTitle(b.title);
+        if (!titleA || !titleB) return "";
+        if (titleA === titleB) return "same normalized title";
+
+        // Fuzzy matching is deliberately guarded. We only use it when the records
+        // look like the same authorship and the years agree (or differ by only one,
+        // which accommodates online-first vs. issue-year metadata).
+        if (!yearsCompatible(a.pub_year, b.pub_year)) return "";
+        if (!authorsOverlap(a.author, b.author)) return "";
+
+        const shorter = titleA.length <= titleB.length ? titleA : titleB;
+        const longer = titleA.length > titleB.length ? titleA : titleB;
+        const lengthRatio = shorter.length / longer.length;
+
+        // Common Scholar case: one provider appends a series/database/source phrase
+        // to an otherwise identical title.
+        if (shorter.length >= 30 && longer.includes(shorter) && lengthRatio >= 0.58) {
+          return "title contained in longer source title";
+        }
+
+        const stats = titleTokenSimilarity(titleA, titleB);
+        if (stats.shared >= 6 && stats.coverage >= 0.90 && stats.jaccard >= 0.62) {
+          return "high-overlap title metadata";
+        }
+        if (stats.shared >= 6 && stats.jaccard >= 0.84) {
+          return "fuzzy title match";
+        }
+
+        return "";
+      }
+
+      function extractDOI(pub) {
+        const fields = [pub.doi, pub.DOI, pub.pub_url, pub.citation, pub.journal, pub.publisher]
+          .filter(Boolean)
+          .map(String);
+        const text = fields.join(" ");
+        const match = text.match(/10\.\d{4,9}\/[-._;()/:a-z0-9]+/i);
+        return match ? match[0].replace(/[.,;:)\]]+$/g, "").toLowerCase() : "";
+      }
+
+      function yearsCompatible(yearA, yearB) {
+        const a = Number(yearA);
+        const b = Number(yearB);
+        if (!a || !b) return true;
+        return Math.abs(a - b) <= 1;
+      }
+
+      function authorsOverlap(authorA, authorB) {
+        if (!authorA || !authorB) return true; // Do not reject records with missing metadata.
+
+        const ignore = new Set(["and", "the", "et", "al"]);
+        const tokens = text => new Set(
+          normalizeTitle(text)
+            .split(" ")
+            .filter(token => token.length >= 3 && !ignore.has(token))
+        );
+
+        const a = tokens(authorA);
+        const b = tokens(authorB);
+        if (!a.size || !b.size) return true;
+
+        for (const token of a) {
+          if (b.has(token)) return true;
+        }
+        return false;
+      }
+
+      function titleTokenSimilarity(titleA, titleB) {
+        const stop = new Set([
+          "the", "and", "for", "with", "from", "into", "using", "use", "of", "in",
+          "on", "to", "a", "an", "as", "at", "by", "is", "are", "or", "via"
+        ]);
+        const tokenSet = title => new Set(
+          title.split(" ").filter(token => token.length >= 3 && !stop.has(token))
+        );
+
+        const a = tokenSet(titleA);
+        const b = tokenSet(titleB);
+        let shared = 0;
+        a.forEach(token => { if (b.has(token)) shared += 1; });
+        const union = new Set([...a, ...b]).size;
+        const minSize = Math.min(a.size, b.size);
+
+        return {
+          shared,
+          jaccard: union ? shared / union : 0,
+          coverage: minSize ? shared / minSize : 0
+        };
+      }
+
       function mergePublication(existing, candidate) {
         const merged = { ...existing };
+
+        // Prefer whichever duplicate record supplies a missing field. This lets two
+        // incomplete Scholar records combine into one more complete display record.
         Object.keys(candidate).forEach(key => {
           const oldValue = merged[key];
           const newValue = candidate[key];
@@ -967,8 +1191,119 @@
             merged[key] = newValue;
           }
         });
+
+        // Citation counts can differ across duplicate records; keep the larger value.
         merged.num_citations = Math.max(Number(existing.num_citations || 0), Number(candidate.num_citations || 0));
         return merged;
+      }
+
+      function filterDuplicateGroups(groups, query) {
+        if (!query) return groups;
+        const q = query.toLowerCase();
+        return groups.filter(group => group.records.some(pub => [
+          pub.title, pub.author, pub.journal, pub.publisher, pub.abstract, pub.pub_year, pub.profileOwner
+        ].some(value => String(value || "").toLowerCase().includes(q))));
+      }
+
+      function summarizeDuplicates(groups) {
+        let hidden = 0;
+        let sameProfile = 0;
+        let crossProfile = 0;
+
+        groups.forEach(group => {
+          hidden += Math.max(0, group.records.length - 1);
+
+          const counts = new Map();
+          group.records.forEach(record => {
+            const owner = record.profileOwner || "Unknown profile";
+            counts.set(owner, (counts.get(owner) || 0) + 1);
+          });
+
+          // Extra copies within a single Scholar profile are likely Scholar duplicates.
+          counts.forEach(count => {
+            sameProfile += Math.max(0, count - 1);
+          });
+
+          // One copy from each additional profile is an expected coauthor duplicate.
+          crossProfile += Math.max(0, counts.size - 1);
+        });
+
+        return { hidden, sameProfile, crossProfile, groups: groups.length };
+      }
+
+      function renderDuplicateDiagnostics(groups, stats) {
+        els.statDuplicates.textContent = stats.hidden.toLocaleString();
+
+        if (!stats.hidden) {
+          els.duplicatePanel.hidden = true;
+          els.duplicatePanel.open = false;
+          els.duplicateList.replaceChildren();
+          return;
+        }
+
+        els.duplicatePanel.hidden = false;
+        els.duplicateSummary.textContent = `Review ${stats.hidden.toLocaleString()} hidden duplicate record${stats.hidden === 1 ? "" : "s"}`;
+        els.duplicateIntro.textContent = `${stats.sameProfile.toLocaleString()} likely Google Scholar duplicate${stats.sameProfile === 1 ? "" : "s"} within the same faculty profile; ${stats.crossProfile.toLocaleString()} expected duplicate${stats.crossProfile === 1 ? "" : "s"} across faculty profiles (coauthored work). The JSON files are not changed.`;
+
+        const fragment = document.createDocumentFragment();
+        groups
+          .slice()
+          .sort((a, b) => Number(b.publication.pub_year || 0) - Number(a.publication.pub_year || 0))
+          .forEach(group => {
+            const box = document.createElement("div");
+            box.className = "duplicate-group";
+
+            const heading = document.createElement("h4");
+            heading.textContent = group.publication.title || "Untitled publication";
+            box.appendChild(heading);
+
+            const ownerCounts = new Map();
+            group.records.forEach(record => {
+              const owner = record.profileOwner || "Unknown profile";
+              ownerCounts.set(owner, (ownerCounts.get(owner) || 0) + 1);
+            });
+            const hasSameProfileDuplicate = [...ownerCounts.values()].some(count => count > 1);
+
+            const kind = document.createElement("span");
+            kind.className = "duplicate-kind";
+            const reasonLabel = group.matchReasons && group.matchReasons.length
+              ? ` · ${group.matchReasons.join(", ")}`
+              : "";
+            kind.textContent = (hasSameProfileDuplicate
+              ? "Same-profile Scholar duplicate"
+              : "Cross-profile coauthor duplicate") + reasonLabel;
+            box.appendChild(kind);
+
+            const list = document.createElement("ul");
+            list.className = "duplicate-records";
+            group.records.forEach(record => {
+              const li = document.createElement("li");
+              const parts = [record.profileOwner || "Unknown profile"];
+              if (record.pub_year) parts.push(String(record.pub_year));
+              if (record.journal || record.publisher) parts.push(record.journal || record.publisher);
+              if (Number(record.num_citations || 0) > 0) parts.push(`${Number(record.num_citations).toLocaleString()} citations`);
+              li.appendChild(document.createTextNode(parts.join(" · ")));
+
+              const scholarRecordUrl = buildScholarRecordUrl(record);
+              if (scholarRecordUrl) {
+                li.appendChild(document.createTextNode(" · "));
+                li.appendChild(externalLink("Scholar record", scholarRecordUrl));
+              } else if (record.pub_url) {
+                li.appendChild(document.createTextNode(" · "));
+                li.appendChild(externalLink("Publication", normalizeUrl(record.pub_url)));
+              }
+              list.appendChild(li);
+            });
+            box.appendChild(list);
+            fragment.appendChild(box);
+          });
+
+        els.duplicateList.replaceChildren(fragment);
+      }
+
+      function buildScholarRecordUrl(record) {
+        if (!record.id || !record.author_pub_id) return "";
+        return `https://scholar.google.com/citations?view_op=view_citation&hl=en&user=${encodeURIComponent(record.id)}&citation_for_view=${encodeURIComponent(record.author_pub_id)}`;
       }
 
       function classifyPublication(bib) {
@@ -986,13 +1321,14 @@
         ].some(value => String(value || "").toLowerCase().includes(q)));
       }
 
-      function renderStats(publications) {
+      function renderStats(publications, duplicateStats) {
         const years = new Set(publications.map(pub => String(pub.pub_year || "")).filter(Boolean));
         const learningCount = publications.filter(pub => pub.tag === "Learning").length;
         els.statPublications.textContent = publications.length.toLocaleString();
         els.statAuthors.textContent = selectedAuthors.length.toLocaleString();
         els.statYears.textContent = years.size.toLocaleString();
         els.statLearning.textContent = learningCount.toLocaleString();
+        els.statDuplicates.textContent = duplicateStats.hidden.toLocaleString();
       }
 
       function renderChart(publications) {
@@ -1224,10 +1560,11 @@
         return html;
       }
 
-      function updateResultContext(publications) {
+      function updateResultContext(publications, duplicateStats) {
         const bits = [];
         if (searchText) bits.push(`matching “${searchText}”`);
         if (selectedAuthors.length !== nameSpellings.length) bits.push(`${selectedAuthors.length} selected author${selectedAuthors.length === 1 ? "" : "s"}`);
+        if (duplicateStats.hidden) bits.push(`${duplicateStats.hidden} duplicate record${duplicateStats.hidden === 1 ? "" : "s"} hidden`);
         els.resultContext.textContent = bits.join(" · ");
       }
 
@@ -1313,7 +1650,13 @@
       }
 
       function normalizeTitle(title) {
-        return String(title || "").toLowerCase().replace(/\s+/g, " ").trim();
+        return String(title || "")
+          .toLowerCase()
+          .normalize("NFKD")
+          .replace(/\p{M}+/gu, "")
+          .replace(/[^\p{L}\p{N}]+/gu, " ")
+          .replace(/\s+/g, " ")
+          .trim();
       }
 
       function parseAuthors(text) {
