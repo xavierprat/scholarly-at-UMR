@@ -20,6 +20,9 @@ from scholarly import *
 import jsonpickle
 import json
 import os
+import sys
+import time
+import random
 
 #from scholarly import ProxyGenerator
 #pg = ProxyGenerator()
@@ -36,53 +39,112 @@ import os
 faculty = [
    ["Bijaya Aryal","xLrK_rQAAAAJ",         "B Aryal;B. Aryal"],
    ["Abraham Ayebo","nw1yBdUAAAAJ",        "A Ayebo"],
-   ["Amy Collins-Warfield","8egZNOMAAAAJ", 	"AE Collins-Warfield;A Collins-Warfield;Amy E Collins-Warfield"],
+   ["Amy Collins","8egZNOMAAAAJ", 	"AE Collins-Warfield;A Collins-Warfield;Amy E Collins-Warfield;Amy Collins-Warfield;A Collins;Amy E Collins"],
    ["Olivia Crandell","nY0udHMAAAAJ", 		"Olivia Crandell;OM Crandell;Olivia M. Crandell;Olivia Marie Crandell;Olivia M Crandell"],
+   ["Cate Denial","spufJKkAAAAJ",         "Catherine Denial;Catherine J Denial;C.J. Denial"],
    ["Molly Dingel","-6iHfAcAAAAJ",         "M Dingel;Molly J Dingel"],
    ["Tim Doherty","bz1A2PAAAAAJ",         "Tim Doherty;Tim F Doherty"],
+   ["Elizabeth Dunens","S7o0B6QAAAAJ", "E Dunens;E. Dunens;Elizabeth Dunens"],
+   ["Alexander Eden","Ae03qroAAAAJ",         "A Eden;Alexander Eden"],
    ["Robert M. Erdmann","BMnhiyAAAAAJ",	"RM Erdmann;R Erdmann;Robert Erdmann;Robert M Erdmann"],
+   ["Connor Ferguson","fAavXVcAAAAJ",	"Connor L Ferguson;Connor L. Ferguson;Connor Ferguson;C.L. Ferguson;CL Ferguson;Connor Lynn Ferguson"],
+   ["Casandra Koevoets-Beach","uuDgG7UAAAAJ",	"Casandra Koevoets-Beach;C Koevoets-Beach;C. Koevoets-Beach"],
    ["Kelsey Metzger","_oJQvj0AAAAJ",       "Kelsey J Metzger;K Metzger;Kelsey Jean Metzger"],
    ["Marcia D Nichols","hy6FBKgAAAAJ",     "Marcia Nichols;M.D Nichols"],
    ["Xavier Prat-Resina","b0fbol0AAAAJ",   "Xavier Prat;X Prat-Resina;Xavier Prat Resina"],
    ["Andrew Petzold","wZWv8KYAAAAJ",       "Andrew M Petzold;Andrew Michael Petzold;AM Petzold"],
    ["Cassidy R. Terrell","NDYTevUAAAAJ",   "Cassidy Terrell;Cassidy R Terrell;C Terrell;Cassidy Renee Terrell"],
+   ["Sarah Collier Villaume","VlBrdScAAAAJ",          	"S Collier Villaume;SC Villaume;Sarah Collier;S. Collier Villaume"],
    ["Jake Wright","jtONKUUAAAAJ",          	"J Wright"]
 
     ]
 
+onlyWriteAuthorFile = False
 
-#with open("authorId.txt","w") as f:
-    #f.write(str(faculty))
-#    json.dump(faculty,f)
+#
+def polite_sleep(low=5, high=12, label="request"):
+    seconds = random.uniform(low, high)
+    print(f"Sleeping {seconds:.1f} s before {label}...")
+    time.sleep(seconds)
 
-allPubs = []
-onlyPubs = []
+# Display the list
+print("Select faculty members by number (comma-separated):")
+for i, f in enumerate(faculty, 1):
+    print(f"{i}: {f[0]}")
+print("99: All faculty")
+print("0: None")
+
+# Get user input
+selection = input("Enter numbers (e.g., 1,3,5 or 99 for all, 0 for none): ")
+
+try:
+    selection = selection.strip()
+    if selection == "99":
+        selected_faculty = faculty  # all
+    elif selection == "0":
+        onlyWriteAuthorFile = True
+        selected_faculty = []  # none
+    else:
+        selected_indices = [int(x.strip()) - 1 for x in selection.split(",")]
+        selected_faculty = [faculty[i] for i in selected_indices if 0 <= i < len(faculty)]
+
+    print("\nYou selected:")
+    if selected_faculty:
+        for f in selected_faculty:
+            print(f[0])
+    else:
+        print("No faculty selected.")
+except Exception as e:
+    print(f"Error in selection: {e}")
+
+
+
+
+#Author file
 authorFile = open("authors.txt","w")
+
 for item in faculty:
     authName = item[0]
     authID = item[1]
     #write author file for alternative spellings
     authorFile.write(";".join(item)+"\n")
-    #continue
-    #search_query = scholarly.search_author(auth)
-    #author = next(search_query).fill()
+authorFile.close()
+
+print(faculty)
+print(selected_faculty)
+
+#sys.exit()
+
+allPubs = []
+onlyPubs = []
+
+for item in selected_faculty:
+    authName = item[0]
+    authID = item[1]
+
     print("searching ", authID)
+
+    polite_sleep(8, 18, "author query")
     search_query = scholarly.search_author_id(authID)
-    #author = search_query.fill()
-    #author2 = next(search_query)
     author = scholarly.fill(search_query, sections=['publications'])
-    #scholarly.pprint(author)
+
     count = 0
     bibEntry = ""
+
     for pubindex in range(len(author["publications"])):
         try:
-            #lets get more info for each publication
-            #pub.fill()
+            polite_sleep(4, 10, f"publication {pubindex+1}")
             pub = scholarly.fill(author["publications"][pubindex])
-        except:
-            a=1
+
+        except Exception as e:
+            print(f"Failed publication {pubindex+1}: {e}")
+            continue
+
         onlyPubs.append(pub["bib"])
         print(pub["bib"])
+
+        if (pubindex + 1) % 10 == 0:
+            polite_sleep(30, 90, "long cooldown")
 
         #the bibtex module doesnt work ,we can do it manually
         #create a new bibtex entry
@@ -108,9 +170,8 @@ for item in faculty:
         json.dump(frozen,f)
 
 
-authorFile.close()
 
 # Writing to sample.json
-json_object = json.dumps(onlyPubs,indent=2)
-with open("allPubs.json", "w",encoding="utf-8") as outfile:
-    outfile.write(json_object)
+#json_object = json.dumps(onlyPubs,indent=2)
+#with open("allPubs.json", "w",encoding="utf-8") as outfile:
+#    outfile.write(json_object)

@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Faculty Publications at UMR</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --text: #18212f;
+      --muted: #667085;
+      --border: #dfe5ec;
+      --accent: #7a0019;
+      --accent-dark: #5a0012;
+      --accent-soft: #f8ecef;
+      --gold: #ffcc33;
+      --learning-bg: #edf7f2;
+      --learning-text: #17633b;
+      --other-bg: #eef4fb;
+      --other-text: #285d8f;
+      --shadow: 0 8px 24px rgba(16, 24, 40, 0.07);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-dark); }
+
+    .site-header {
+      background: linear-gradient(135deg, var(--accent) 0%, #930023 100%);
+      color: white;
+      border-bottom: 5px solid var(--gold);
+    }
+
+    .header-inner {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 30px 0 26px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      font-size: 0.78rem;
+      font-weight: 750;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      opacity: 0.82;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.05;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      max-width: 780px;
+      margin: 12px 0 0;
+      font-size: 1.03rem;
+      opacity: 0.9;
+    }
+
+    .subtitle a { color: white; text-decoration-color: rgba(255,255,255,.45); }
+
+    .page-shell {
+      width: min(1280px, calc(100% - 32px));
+      margin: 24px auto 48px;
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .filter-header {
+      padding: 17px 18px 13px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-header h2 {
+      margin: 0;
+      font-size: 1.08rem;
+    }
+
+    .filter-header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+
+    .filter-section {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-section:last-of-type { border-bottom: 0; }
+
+    .filter-section summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 13px 18px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+
+    .filter-section summary::-webkit-details-marker { display: none; }
+    .filter-section summary::after { content: "▾"; color: var(--muted); transition: transform .15s ease; }
+    .filter-section:not([open]) summary::after { transform: rotate(-90deg); }
+
+    .filter-body { padding: 0 18px 16px; }
+
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    button, select, input { font: inherit; }
+
+    .small-button,
+    .utility-button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .05s ease;
+    }
+
+    .small-button {
+      padding: 5px 8px;
+      font-size: 0.76rem;
+    }
+
+    .small-button:hover,
+    .utility-button:hover { background: var(--surface-soft); border-color: #bbc5d0; }
+    button:active { transform: translateY(1px); }
+
+    .check-list {
+      display: grid;
+      gap: 6px;
+      max-height: 265px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .check-list.years {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      max-height: 220px;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 5px 6px;
+      border-radius: 7px;
+      font-size: 0.84rem;
+      cursor: pointer;
+    }
+
+    .check-row:hover { background: var(--surface-soft); }
+    .check-row input { margin: 3px 0 0; accent-color: var(--accent); }
+
+    .sort-select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+    }
+
+    .sidebar-footer {
+      padding: 14px 18px 17px;
+      background: var(--surface-soft);
+    }
+
+    .reset-button {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .content { min-width: 0; }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+    }
+
+    .search-wrap::before {
+      content: "⌕";
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-51%);
+      color: var(--muted);
+      font-size: 1.25rem;
+    }
+
+    #searchInput {
+      width: 100%;
+      padding: 11px 14px 11px 38px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      outline: none;
+    }
+
+    #searchInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+    .utility-button {
+      padding: 10px 12px;
+      white-space: nowrap;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .stat-value {
+      display: block;
+      font-size: 1.6rem;
+      line-height: 1;
+      font-weight: 760;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-label {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 18px 14px;
+      margin-bottom: 16px;
+    }
+
+    .card-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .card-heading h2 { margin: 0; font-size: 1.05rem; }
+    .card-heading span { color: var(--muted); font-size: 0.78rem; }
+
+    .chart-holder { height: 270px; }
+
+    .year-nav {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 18px;
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .year-nav-label { color: var(--muted); font-size: 0.78rem; font-weight: 700; margin-right: 2px; }
+
+    .year-chip {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: white;
+      color: var(--text);
+      padding: 4px 9px;
+      font-size: 0.75rem;
+      text-decoration: none;
+    }
+
+    .year-chip:hover { background: var(--accent-soft); border-color: #e2bac4; color: var(--accent-dark); }
+
+    .results-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      margin: 0 0 10px;
+    }
+
+    .results-heading h2 { margin: 0; font-size: 1.35rem; }
+    .results-heading span { color: var(--muted); font-size: 0.82rem; }
+
+    .year-section {
+      scroll-margin-top: 20px;
+      margin: 0 0 28px;
+    }
+
+    .year-title {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 9px;
+      padding: 8px 0 7px;
+      background: linear-gradient(var(--bg) 75%, rgba(245,247,250,0));
+      font-size: 1.35rem;
+      letter-spacing: -0.015em;
+    }
+
+    .year-count {
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 600;
+    }
+
+    .publication-list { display: grid; gap: 10px; }
+
+    .publication-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px 17px;
+      transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+    }
+
+    .publication-card:hover {
+      border-color: #cbd4de;
+      box-shadow: 0 7px 20px rgba(16,24,40,.06);
+      transform: translateY(-1px);
+    }
+
+    .publication-title {
+      margin: 0 0 5px;
+      font-size: 1rem;
+      font-weight: 720;
+      line-height: 1.35;
+    }
+
+    .publication-authors {
+      margin: 0 0 7px;
+      color: #344054;
+      font-size: 0.87rem;
+    }
+
+    .publication-authors a { text-decoration: none; border-bottom: 1px dotted currentColor; }
+
+    .publication-meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+
+    .publication-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 0.71rem;
+      font-weight: 700;
+    }
+
+    .badge.learning { background: var(--learning-bg); color: var(--learning-text); }
+    .badge.other { background: var(--other-bg); color: var(--other-text); }
+
+    .action-link {
+      font-size: 0.78rem;
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    details.abstract {
+      margin-top: 9px;
+      border-top: 1px solid #eef1f4;
+      padding-top: 7px;
+    }
+
+    details.abstract summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 650;
+    }
+
+    .abstract-text {
+      margin: 8px 0 2px;
+      color: #475467;
+      font-size: 0.83rem;
+      line-height: 1.55;
+    }
+
+    .empty-state,
+    .error-state,
+    .loading-state {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .error-state { border-color: #f0c7c7; color: #8a3232; }
+
+    .site-footer {
+      border-top: 1px solid var(--border);
+      background: white;
+      color: var(--muted);
+    }
+
+    .footer-inner {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 34px;
+      font-size: 0.8rem;
+    }
+
+    .footer-inner p { margin: 5px 0; }
+
+    #backToTop {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease;
+    }
+
+    #backToTop.visible { opacity: 1; pointer-events: auto; }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
+    @media (max-width: 950px) {
+      .page-shell { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
+      .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .check-list { max-height: 220px; }
+    }
+
+    @media (max-width: 620px) {
+      .header-inner, .page-shell, .footer-inner { width: min(100% - 20px, 1280px); }
+      .header-inner { padding-top: 23px; }
+      .page-shell { margin-top: 14px; gap: 14px; }
+      .toolbar { flex-wrap: wrap; }
+      .search-wrap { flex-basis: 100%; }
+      .utility-button { flex: 1; }
+      .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stat-card { padding: 12px; }
+      .chart-holder { height: 230px; }
+      .publication-card { padding: 13px 14px; }
+      .year-title { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header" id="top">
+    <div class="header-inner">
+      <p class="eyebrow">University of Minnesota Rochester</p>
+      <h1>Faculty Publications</h1>
+      <p class="subtitle">
+        An unofficial compilation from Google Scholar profiles of UMR faculty. Use the filters to explore authors, years, and teaching-and-learning scholarship.
+      </p>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <aside class="sidebar" aria-label="Publication filters">
+      <div class="filter-header">
+        <h2>Filter publications</h2>
+        <p>Changes update immediately and are reflected in the page URL.</p>
+      </div>
+
+      <details class="filter-section" open>
+        <summary>Authors</summary>
+        <div class="filter-body">
+          <div class="quick-actions">
+            <button class="small-button" type="button" id="selectAllAuthors">All</button>
+            <button class="small-button" type="button" id="clearAuthors">None</button>
+          </div>
+          <div class="check-list" id="authorsCheck"></div>
+        </div>
+      </details>
+
+      <details class="filter-section" open>
+        <summary>Years</summary>
+        <div class="filter-body">
+          <div class="quick-actions">
+            <button class="small-button" type="button" id="selectAllYears">All</button>
+            <button class="small-button" type="button" id="recentYears">Last 5</button>
+            <button class="small-button" type="button" id="latestYear">Latest with results</button>
+          </div>
+          <div class="check-list years" id="yearsCheck"></div>
+        </div>
+      </details>
+
+      <details class="filter-section" open>
+        <summary>Topic</summary>
+        <div class="filter-body">
+          <div class="check-list">
+            <label class="check-row"><input type="checkbox" id="learningPubs"> <span>Learning research (SoTL or DBER)</span></label>
+            <label class="check-row"><input type="checkbox" id="secondaryPubs"> <span>Other publications</span></label>
+          </div>
+        </div>
+      </details>
+
+      <details class="filter-section" open>
+        <summary>Order</summary>
+        <div class="filter-body">
+          <label class="visually-hidden" for="sortOrder">Publication order</label>
+          <select class="sort-select" id="sortOrder">
+            <option value="new">Newest first</option>
+            <option value="old">Oldest first</option>
+          </select>
+        </div>
+      </details>
+
+      <div class="sidebar-footer">
+        <button type="button" class="reset-button" id="resetFilters">Reset filters</button>
+      </div>
+    </aside>
+
+    <section class="content">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <label class="visually-hidden" for="searchInput">Search publications</label>
+          <input id="searchInput" type="search" placeholder="Search title, author, journal, publisher…" autocomplete="off">
+        </div>
+        <button class="utility-button" id="copyView" type="button">Copy view link</button>
+      </div>
+
+      <div class="stats-grid" aria-label="Publication summary">
+        <div class="stat-card"><span class="stat-value" id="statPublications">—</span><span class="stat-label">Publications shown</span></div>
+        <div class="stat-card"><span class="stat-value" id="statAuthors">—</span><span class="stat-label">Authors selected</span></div>
+        <div class="stat-card"><span class="stat-value" id="statYears">—</span><span class="stat-label">Years with results</span></div>
+        <div class="stat-card"><span class="stat-value" id="statLearning">—</span><span class="stat-label">Learning publications</span></div>
+      </div>
+
+      <section class="chart-card" aria-labelledby="chartHeading">
+        <div class="card-heading">
+          <h2 id="chartHeading">Publications by year</h2>
+          <span>Click a bar to jump to that year</span>
+        </div>
+        <div class="chart-holder"><canvas id="myChart"></canvas></div>
+      </section>
+
+      <nav class="year-nav" id="yearNav" aria-label="Jump to publication year"></nav>
+
+      <div class="results-heading">
+        <h2>Results</h2>
+        <span id="resultContext"></span>
+      </div>
+
+      <div id="status" class="loading-state">Loading publication data…</div>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p><strong>About this page:</strong> Publications are automatically collected from Google Scholar profiles and may contain incomplete or inconsistent metadata.</p>
+      <p>Contact <a href="https://pratresina.umn.edu/">Xavier Prat-Resina</a> at pratr001@r.umn.edu if you have a Google Scholar profile. The <a href="https://github.com/xavierprat/scholarly-at-UMR">Python/JavaScript code is available on GitHub</a>.</p>
+      <p>University of Minnesota Rochester · Unofficial faculty publication compilation.</p>
+    </div>
+  </footer>
+
+  <button id="backToTop" type="button" aria-label="Back to top">↑</button>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const LEARNING_KEYWORDS = [
+        "academi", "assessment", "campus", "classroom", "colleg", "course",
+        "curricul", "educa", "faculty", "in-class", "instruct", "learn",
+        "pedagog", "student", "professor", "teach", "university", "undergraduate"
+      ];
+
+      const SOURCE_DIR = "./source/";
+      const OLDEST_YEAR = 1998;
+      const CURRENT_YEAR = new Date().getFullYear();
+      const ALL_YEARS = Array.from({ length: CURRENT_YEAR - OLDEST_YEAR + 2 }, (_, i) => String(OLDEST_YEAR + i));
+
+      let nameSpellings = [];
+      let authorCache = new Map();
+      let selectedAuthors = [];
+      let selectedYears = new Set();
+      let includeLearning = true;
+      let includeOther = true;
+      let sortOrder = "new";
+      let searchText = "";
+      let chart = null;
+      let currentPublications = [];
+      let renderTimer = null;
+
+      const els = {};
+
+      document.addEventListener("DOMContentLoaded", init);
+
+      async function init() {
+        cacheElements();
+        bindStaticEvents();
+
+        try {
+          const authorText = await fetchText(`${SOURCE_DIR}authors.txt`);
+          nameSpellings = parseAuthors(authorText);
+          initializeStateFromUrl();
+          buildAuthorControls();
+          buildYearControls();
+          syncControlsFromState();
+          await refreshDataAndRender();
+        } catch (error) {
+          showError(`Could not initialize the publication page: ${error.message}`);
+          console.error(error);
+        }
+      }
+
+      function cacheElements() {
+        [
+          "authorsCheck", "yearsCheck", "learningPubs", "secondaryPubs", "sortOrder",
+          "searchInput", "copyView", "resetFilters", "selectAllAuthors", "clearAuthors",
+          "selectAllYears", "recentYears", "latestYear", "statPublications", "statAuthors",
+          "statYears", "statLearning", "yearNav", "resultContext", "status", "results", "backToTop"
+        ].forEach(id => { els[id] = document.getElementById(id); });
+      }
+
+      function bindStaticEvents() {
+        els.learningPubs.addEventListener("change", handleFilterChange);
+        els.secondaryPubs.addEventListener("change", handleFilterChange);
+        els.sortOrder.addEventListener("change", handleFilterChange);
+
+        els.searchInput.addEventListener("input", () => {
+          searchText = els.searchInput.value.trim();
+          clearTimeout(renderTimer);
+          renderTimer = setTimeout(() => {
+            updateUrl();
+            renderAll();
+          }, 120);
+        });
+
+        els.selectAllAuthors.addEventListener("click", async () => {
+          setAllCheckboxes(els.authorsCheck, true);
+          await handleFilterChange();
+        });
+
+        els.clearAuthors.addEventListener("click", async () => {
+          setAllCheckboxes(els.authorsCheck, false);
+          await handleFilterChange();
+        });
+
+        els.selectAllYears.addEventListener("click", async () => {
+          setAllCheckboxes(els.yearsCheck, true);
+          await handleFilterChange();
+        });
+
+        els.recentYears.addEventListener("click", async () => {
+          const cutoff = CURRENT_YEAR - 4;
+          els.yearsCheck.querySelectorAll("input[type=checkbox]").forEach(cb => {
+            cb.checked = Number(cb.value) >= cutoff && Number(cb.value) <= CURRENT_YEAR;
+          });
+          await handleFilterChange();
+        });
+
+        els.latestYear.addEventListener("click", async () => {
+          const latest = getLatestAvailableYear();
+          if (!latest) return;
+          els.yearsCheck.querySelectorAll("input[type=checkbox]").forEach(cb => {
+            cb.checked = cb.value === latest;
+          });
+          await handleFilterChange();
+        });
+
+        els.resetFilters.addEventListener("click", async () => {
+          selectedAuthors = nameSpellings.map(row => row[0]);
+          selectedYears = new Set(ALL_YEARS);
+          includeLearning = true;
+          includeOther = true;
+          sortOrder = "new";
+          searchText = "";
+          syncControlsFromState();
+          await refreshDataAndRender();
+        });
+
+        els.copyView.addEventListener("click", async () => {
+          updateUrl();
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            const oldText = els.copyView.textContent;
+            els.copyView.textContent = "Link copied";
+            setTimeout(() => { els.copyView.textContent = oldText; }, 1300);
+          } catch {
+            window.prompt("Copy this link:", window.location.href);
+          }
+        });
+
+        window.addEventListener("scroll", () => {
+          els.backToTop.classList.toggle("visible", window.scrollY > 600);
+        }, { passive: true });
+
+        els.backToTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+      }
+
+      function initializeStateFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const allAuthorNames = nameSpellings.map(row => row[0]);
+
+        selectedAuthors = params.has("author")
+          ? params.get("author").split(";").filter(name => allAuthorNames.includes(name))
+          : [...allAuthorNames];
+
+        selectedYears = params.has("years")
+          ? new Set(params.get("years").split(";").filter(year => ALL_YEARS.includes(year)))
+          : new Set(ALL_YEARS);
+
+        const topicSpecified = params.has("learningPubs") || params.has("secondaryPubs");
+        includeLearning = topicSpecified ? params.has("learningPubs") : true;
+        includeOther = topicSpecified ? params.has("secondaryPubs") : true;
+
+        sortOrder = params.has("oldfirst") ? "old" : "new";
+        searchText = params.get("q") || "";
+      }
+
+      function buildAuthorControls() {
+        const fragment = document.createDocumentFragment();
+        nameSpellings.forEach(row => {
+          const canonicalName = row[0];
+          const label = document.createElement("label");
+          label.className = "check-row";
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.value = canonicalName;
+          input.addEventListener("change", handleFilterChange);
+          const span = document.createElement("span");
+          span.textContent = canonicalName;
+          label.append(input, span);
+          fragment.appendChild(label);
+        });
+        els.authorsCheck.replaceChildren(fragment);
+      }
+
+      function buildYearControls() {
+        const fragment = document.createDocumentFragment();
+        [...ALL_YEARS].reverse().forEach(year => {
+          const label = document.createElement("label");
+          label.className = "check-row";
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.value = year;
+          input.addEventListener("change", handleFilterChange);
+          const span = document.createElement("span");
+          span.textContent = year;
+          label.append(input, span);
+          fragment.appendChild(label);
+        });
+        els.yearsCheck.replaceChildren(fragment);
+      }
+
+      function syncControlsFromState() {
+        els.authorsCheck.querySelectorAll("input[type=checkbox]").forEach(cb => {
+          cb.checked = selectedAuthors.includes(cb.value);
+        });
+        els.yearsCheck.querySelectorAll("input[type=checkbox]").forEach(cb => {
+          cb.checked = selectedYears.has(cb.value);
+        });
+        els.learningPubs.checked = includeLearning;
+        els.secondaryPubs.checked = includeOther;
+        els.sortOrder.value = sortOrder;
+        els.searchInput.value = searchText;
+      }
+
+      async function handleFilterChange() {
+        readStateFromControls();
+        await refreshDataAndRender();
+      }
+
+      function readStateFromControls() {
+        selectedAuthors = [...els.authorsCheck.querySelectorAll("input:checked")].map(cb => cb.value);
+        selectedYears = new Set([...els.yearsCheck.querySelectorAll("input:checked")].map(cb => cb.value));
+        includeLearning = els.learningPubs.checked;
+        includeOther = els.secondaryPubs.checked;
+        sortOrder = els.sortOrder.value;
+        searchText = els.searchInput.value.trim();
+      }
+
+      async function refreshDataAndRender() {
+        updateUrl();
+        setLoading(true);
+        try {
+          await loadSelectedAuthors();
+          renderAll();
+        } catch (error) {
+          showError(`Could not load one or more publication files: ${error.message}`);
+          console.error(error);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function loadSelectedAuthors() {
+        const missing = selectedAuthors.filter(name => !authorCache.has(name));
+        if (!missing.length) return;
+
+        await Promise.all(missing.map(async name => {
+          const url = `${SOURCE_DIR}${encodeURIComponent(name)}.json`;
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
+          const payload = await response.json();
+          const author = parseAuthorPayload(payload);
+          if (!author || !Array.isArray(author.publications)) {
+            throw new Error(`${name}: unexpected JSON structure`);
+          }
+          authorCache.set(name, author);
+        }));
+      }
+
+      function parseAuthorPayload(payload) {
+        if (payload && typeof payload === "object") return payload;
+        if (typeof payload !== "string") return null;
+
+        try {
+          return JSON.parse(payload);
+        } catch (error) {
+          console.error("Could not parse author payload", error);
+          return null;
+        }
+      }
+
+      function renderAll() {
+        currentPublications = buildPublicationList();
+        const filtered = applyTextSearch(currentPublications, searchText);
+        renderStats(filtered);
+        renderChart(filtered);
+        renderYearNav(filtered);
+        renderResults(filtered);
+        updateResultContext(filtered);
+      }
+
+      function buildPublicationList() {
+        const byTitle = new Map();
+
+        selectedAuthors.forEach(selectedName => {
+          const authorInfo = authorCache.get(selectedName);
+          if (!authorInfo) return;
+
+          const scholarId = authorInfo.scholar_id || "";
+          const pubs = Array.isArray(authorInfo.publications) ? authorInfo.publications : [];
+
+          pubs.forEach(pubRecord => {
+            const bib = pubRecord && pubRecord.bib ? { ...pubRecord.bib } : {};
+            if (!bib.title) return;
+
+            const tag = classifyPublication(bib);
+            if ((tag === "Learning" && !includeLearning) || (tag === "Not learning" && !includeOther)) return;
+
+            const year = bib.pub_year ? String(bib.pub_year) : "";
+            if (!selectedYears.has(year)) return;
+
+            const candidate = {
+              ...bib,
+              tag,
+              id: scholarId,
+              profileOwner: selectedName,
+              pub_url: pubRecord.pub_url,
+              num_citations: Number(pubRecord.num_citations || 0),
+              citedby_url: pubRecord.citedby_url
+            };
+
+            const key = normalizeTitle(bib.title);
+            if (!byTitle.has(key)) {
+              byTitle.set(key, candidate);
+            } else {
+              byTitle.set(key, mergePublication(byTitle.get(key), candidate));
+            }
+          });
+        });
+
+        return [...byTitle.values()].sort((a, b) => {
+          const ay = Number(a.pub_year || 0);
+          const by = Number(b.pub_year || 0);
+          if (ay !== by) return sortOrder === "old" ? ay - by : by - ay;
+          return String(a.title || "").localeCompare(String(b.title || ""));
+        });
+      }
+
+      function mergePublication(existing, candidate) {
+        const merged = { ...existing };
+        Object.keys(candidate).forEach(key => {
+          const oldValue = merged[key];
+          const newValue = candidate[key];
+          if ((oldValue === undefined || oldValue === null || oldValue === "") && newValue !== undefined && newValue !== null && newValue !== "") {
+            merged[key] = newValue;
+          }
+        });
+        merged.num_citations = Math.max(Number(existing.num_citations || 0), Number(candidate.num_citations || 0));
+        return merged;
+      }
+
+      function classifyPublication(bib) {
+        const title = String(bib.title || "").toLowerCase();
+        const journal = String(bib.journal || "").toLowerCase();
+        const isLearning = LEARNING_KEYWORDS.some(word => title.includes(word) || journal.includes(word));
+        return isLearning ? "Learning" : "Not learning";
+      }
+
+      function applyTextSearch(publications, query) {
+        if (!query) return publications;
+        const q = query.toLowerCase();
+        return publications.filter(pub => [
+          pub.title, pub.author, pub.journal, pub.publisher, pub.abstract, pub.pub_year
+        ].some(value => String(value || "").toLowerCase().includes(q)));
+      }
+
+      function renderStats(publications) {
+        const years = new Set(publications.map(pub => String(pub.pub_year || "")).filter(Boolean));
+        const learningCount = publications.filter(pub => pub.tag === "Learning").length;
+        els.statPublications.textContent = publications.length.toLocaleString();
+        els.statAuthors.textContent = selectedAuthors.length.toLocaleString();
+        els.statYears.textContent = years.size.toLocaleString();
+        els.statLearning.textContent = learningCount.toLocaleString();
+      }
+
+      function renderChart(publications) {
+        const byYear = new Map();
+        publications.forEach(pub => {
+          const year = String(pub.pub_year || "");
+          if (!year) return;
+          if (!byYear.has(year)) byYear.set(year, { learning: 0, other: 0 });
+          if (pub.tag === "Learning") byYear.get(year).learning++;
+          else byYear.get(year).other++;
+        });
+
+        const labels = [...byYear.keys()].sort((a, b) => Number(a) - Number(b));
+        const learningData = labels.map(year => byYear.get(year).learning);
+        const otherData = labels.map(year => byYear.get(year).other);
+
+        if (chart) chart.destroy();
+        const ctx = document.getElementById("myChart");
+        chart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              { label: "Learning research", data: learningData, backgroundColor: "rgba(23, 99, 59, 0.65)" },
+              { label: "Other publications", data: otherData, backgroundColor: "rgba(40, 93, 143, 0.58)" }
+            ]
+          },
+          options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: { position: "top", align: "start", labels: { boxWidth: 12, usePointStyle: true } },
+              tooltip: { mode: "index", intersect: false }
+            },
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+            },
+            onClick: (_, activeElements) => {
+              if (!activeElements.length) return;
+              const year = labels[activeElements[0].index];
+              document.getElementById(`year-${year}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }
+        });
+      }
+
+      function renderYearNav(publications) {
+        const years = [...new Set(publications.map(pub => String(pub.pub_year || "")).filter(Boolean))]
+          .sort((a, b) => sortOrder === "old" ? Number(a) - Number(b) : Number(b) - Number(a));
+
+        els.yearNav.replaceChildren();
+        if (!years.length) {
+          els.yearNav.hidden = true;
+          return;
+        }
+        els.yearNav.hidden = false;
+
+        const label = document.createElement("span");
+        label.className = "year-nav-label";
+        label.textContent = "Jump to:";
+        els.yearNav.appendChild(label);
+
+        years.forEach(year => {
+          const link = document.createElement("a");
+          link.className = "year-chip";
+          link.href = `#year-${year}`;
+          link.textContent = year;
+          els.yearNav.appendChild(link);
+        });
+      }
+
+      function renderResults(publications) {
+        els.results.replaceChildren();
+
+        if (!selectedAuthors.length) {
+          els.results.appendChild(messageBox("No authors are selected. Choose one or more authors in the filter panel."));
+          return;
+        }
+        if (!selectedYears.size) {
+          els.results.appendChild(messageBox("No years are selected."));
+          return;
+        }
+        if (!includeLearning && !includeOther) {
+          els.results.appendChild(messageBox("No publication topics are selected."));
+          return;
+        }
+        if (!publications.length) {
+          els.results.appendChild(messageBox("No publications match the current filters."));
+          return;
+        }
+
+        const groups = new Map();
+        publications.forEach(pub => {
+          const year = String(pub.pub_year || "Unknown year");
+          if (!groups.has(year)) groups.set(year, []);
+          groups.get(year).push(pub);
+        });
+
+        const years = [...groups.keys()].sort((a, b) => {
+          if (a === "Unknown year") return 1;
+          if (b === "Unknown year") return -1;
+          return sortOrder === "old" ? Number(a) - Number(b) : Number(b) - Number(a);
+        });
+
+        const fragment = document.createDocumentFragment();
+        years.forEach(year => {
+          const section = document.createElement("section");
+          section.className = "year-section";
+          section.id = `year-${year.replace(/\s+/g, "-")}`;
+
+          const heading = document.createElement("h3");
+          heading.className = "year-title";
+          heading.appendChild(document.createTextNode(year));
+          const count = document.createElement("span");
+          count.className = "year-count";
+          count.textContent = `${groups.get(year).length} publication${groups.get(year).length === 1 ? "" : "s"}`;
+          heading.appendChild(count);
+          section.appendChild(heading);
+
+          const list = document.createElement("div");
+          list.className = "publication-list";
+          groups.get(year).forEach(pub => list.appendChild(buildPublicationCard(pub)));
+          section.appendChild(list);
+          fragment.appendChild(section);
+        });
+
+        els.results.appendChild(fragment);
+      }
+
+      function buildPublicationCard(pub) {
+        const article = document.createElement("article");
+        article.className = "publication-card";
+
+        const title = document.createElement("h4");
+        title.className = "publication-title";
+        title.textContent = pub.title || "Untitled publication";
+        article.appendChild(title);
+
+        if (pub.author) {
+          const authors = document.createElement("p");
+          authors.className = "publication-authors";
+          authors.innerHTML = highlightDepartmentAuthors(String(pub.author));
+          article.appendChild(authors);
+        }
+
+        const metaParts = [];
+        const venue = pub.journal || pub.publisher;
+        if (venue) metaParts.push(venue);
+        if (pub.number) metaParts.push(`No. ${pub.number}`);
+        if (pub.volume) metaParts.push(`Vol. ${pub.volume}`);
+        if (pub.pages) metaParts.push(`pp. ${pub.pages}`);
+        if (pub.pub_year) metaParts.push(String(pub.pub_year));
+
+        if (metaParts.length) {
+          const meta = document.createElement("p");
+          meta.className = "publication-meta";
+          meta.textContent = metaParts.join(" · ");
+          article.appendChild(meta);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "publication-actions";
+
+        const badge = document.createElement("span");
+        badge.className = `badge ${pub.tag === "Learning" ? "learning" : "other"}`;
+        badge.textContent = pub.tag === "Learning" ? "Learning research" : "Other";
+        actions.appendChild(badge);
+
+        if (pub.pub_url) actions.appendChild(externalLink("Publication", normalizeUrl(pub.pub_url)));
+        if (Number(pub.num_citations || 0) > 0 && pub.citedby_url) {
+          actions.appendChild(externalLink(`Citations: ${Number(pub.num_citations).toLocaleString()}`, normalizeScholarUrl(pub.citedby_url)));
+        }
+        article.appendChild(actions);
+
+        if (pub.abstract) {
+          const details = document.createElement("details");
+          details.className = "abstract";
+          const summary = document.createElement("summary");
+          summary.textContent = "Show abstract";
+          const abstract = document.createElement("p");
+          abstract.className = "abstract-text";
+          abstract.textContent = pub.abstract;
+          details.append(summary, abstract);
+          article.appendChild(details);
+        }
+
+        return article;
+      }
+
+      function highlightDepartmentAuthors(authorString) {
+        const matches = [];
+        nameSpellings.forEach(row => {
+          const scholarId = row[1];
+          const variants = [row[0], ...row.slice(2)].filter(Boolean).sort((a, b) => b.length - a.length);
+          variants.forEach(variant => {
+            let start = 0;
+            while (start < authorString.length) {
+              const index = authorString.toLowerCase().indexOf(variant.toLowerCase(), start);
+              if (index === -1) break;
+              matches.push({ start: index, end: index + variant.length, scholarId });
+              start = index + variant.length;
+            }
+          });
+        });
+
+        matches.sort((a, b) => a.start - b.start || b.end - a.end);
+        const accepted = [];
+        let cursor = -1;
+        matches.forEach(match => {
+          if (match.start >= cursor) {
+            accepted.push(match);
+            cursor = match.end;
+          }
+        });
+
+        if (!accepted.length) return escapeHtml(authorString);
+
+        let html = "";
+        let pos = 0;
+        accepted.forEach(match => {
+          html += escapeHtml(authorString.slice(pos, match.start));
+          const name = authorString.slice(match.start, match.end);
+          html += `<strong><a href="https://scholar.google.com/citations?user=${encodeURIComponent(match.scholarId)}" target="_blank" rel="noopener noreferrer">${escapeHtml(name)}</a></strong>`;
+          pos = match.end;
+        });
+        html += escapeHtml(authorString.slice(pos));
+        return html;
+      }
+
+      function updateResultContext(publications) {
+        const bits = [];
+        if (searchText) bits.push(`matching “${searchText}”`);
+        if (selectedAuthors.length !== nameSpellings.length) bits.push(`${selectedAuthors.length} selected author${selectedAuthors.length === 1 ? "" : "s"}`);
+        els.resultContext.textContent = bits.join(" · ");
+      }
+
+      function updateUrl() {
+        const params = new URLSearchParams();
+        const allAuthorsSelected = selectedAuthors.length === nameSpellings.length;
+        const allYearsSelected = selectedYears.size === ALL_YEARS.length;
+
+        if (!allAuthorsSelected) params.set("author", selectedAuthors.join(";"));
+        if (!allYearsSelected) params.set("years", [...selectedYears].sort((a, b) => Number(a) - Number(b)).join(";"));
+        if (!(includeLearning && includeOther)) {
+          if (includeLearning) params.set("learningPubs", "");
+          if (includeOther) params.set("secondaryPubs", "");
+        }
+        if (sortOrder === "old") params.set("oldfirst", "");
+        if (searchText) params.set("q", searchText);
+
+        const query = params.toString().replace(/%3B/g, ";");
+        const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+        history.replaceState(null, "", newUrl);
+      }
+
+      function getLatestAvailableYear() {
+        let latest = null;
+        selectedAuthors.forEach(name => {
+          const author = authorCache.get(name);
+          if (!author || !Array.isArray(author.publications)) return;
+          author.publications.forEach(pub => {
+            const year = Number(pub?.bib?.pub_year || 0);
+            if (year && (latest === null || year > latest)) latest = year;
+          });
+        });
+        return latest ? String(latest) : null;
+      }
+
+      function setAllCheckboxes(container, checked) {
+        container.querySelectorAll("input[type=checkbox]").forEach(cb => { cb.checked = checked; });
+      }
+
+      function setLoading(isLoading) {
+        if (isLoading) {
+          els.status.hidden = false;
+          els.status.className = "loading-state";
+          els.status.textContent = "Loading publication data…";
+        } else if (!els.status.classList.contains("error-state")) {
+          els.status.hidden = true;
+        }
+      }
+
+      function showError(message) {
+        els.status.hidden = false;
+        els.status.className = "error-state";
+        els.status.textContent = message;
+      }
+
+      function messageBox(text) {
+        const div = document.createElement("div");
+        div.className = "empty-state";
+        div.textContent = text;
+        return div;
+      }
+
+      function externalLink(label, href) {
+        const link = document.createElement("a");
+        link.className = "action-link";
+        link.href = href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = label;
+        return link;
+      }
+
+      function normalizeUrl(url) {
+        const text = String(url || "").trim();
+        if (/^https?:\/\//i.test(text)) return text;
+        return text ? `https://${text.replace(/^\/+/, "")}` : "#";
+      }
+
+      function normalizeScholarUrl(url) {
+        const text = String(url || "").trim();
+        if (/^https?:\/\//i.test(text)) return text;
+        return `https://scholar.google.com/${text.replace(/^\/+/, "")}`;
+      }
+
+      function normalizeTitle(title) {
+        return String(title || "").toLowerCase().replace(/\s+/g, " ").trim();
+      }
+
+      function parseAuthors(text) {
+        return text.split(/\r?\n/)
+          .map(line => line.trim())
+          .filter(Boolean)
+          .map(line => line.split(";").map(part => part.trim()));
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      async function fetchText(url) {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+        return response.text();
+      }
+    })();
+  </script>
+</body>
+</html>
